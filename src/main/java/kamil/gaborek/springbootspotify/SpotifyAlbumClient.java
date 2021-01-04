@@ -1,6 +1,11 @@
 package kamil.gaborek.springbootspotify;
 
+import kamil.gaborek.springbootspotify.entity.Track;
+import kamil.gaborek.springbootspotify.model.Item;
 import kamil.gaborek.springbootspotify.model.SpotifyAlbum;
+import kamil.gaborek.springbootspotify.model.dto.SpotifyAlbumDto;
+import kamil.gaborek.springbootspotify.repository.TrackRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -10,15 +15,28 @@ import org.springframework.security.oauth2.provider.authentication.OAuth2Authent
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @RestController
 public class SpotifyAlbumClient {
 
+    private TrackRepository trackRepository;
+
+    @Autowired
+    public SpotifyAlbumClient(TrackRepository trackRepository){
+        this.trackRepository = trackRepository;
+    }
+
     @GetMapping("/album/{authorName}")
-    public SpotifyAlbum getAlbumsByAuthor(OAuth2Authentication details, @PathVariable String authorName) {
+    public List<SpotifyAlbumDto> getAlbumsByAuthor(OAuth2Authentication details, @PathVariable String authorName) {
 
 
         String jwt = ((OAuth2AuthenticationDetails) details.getDetails()).getTokenValue();
@@ -32,7 +50,18 @@ public class SpotifyAlbumClient {
                 HttpMethod.GET,
                 httpEntity,
                 SpotifyAlbum.class);
-        return exchange.getBody();
+
+        List<SpotifyAlbumDto> tracksList = exchange.getBody().getTracks().getItems()
+                .stream()
+                .map(item -> new SpotifyAlbumDto(item.getName(), item.getAlbum().getImages().get(0).getUrl()))
+                .collect(Collectors.toList());
+
+        return tracksList;
+    }
+
+    @PostMapping("/add-tracks")
+    public void addTracks(@RequestBody Track track){
+        trackRepository.save(track);
     }
 
 }
